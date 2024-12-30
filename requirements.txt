@@ -1,0 +1,4 @@
+lammps_logfile
+numpy
+matplotlib
+ovito
