@@ -5,7 +5,7 @@ atom_style	full
 dimension 2
 special_bonds lj/coul 0.0 1.0 1.0
 #atom_style	molecular
-boundary        p p p 
+boundary        p p p  #  periodic boundary conditions will be used along all three directions of space (the 3 p stand for x, y, and z, respectively)
 #special_bonds lj/coul 0.0 1.0 1.0
 #comm_modify mode single cutoff 10.0 
 
@@ -17,8 +17,8 @@ read_data       data_toy_protein3
 #bond_coeff	* 30.0 2.5 3.0 3.0
 
 
-bond_style      harmonic
-bond_coeff      1 50 1 
+bond_style      harmonic 
+bond_coeff      1 50 1 # coeff for K, r_0 (distance)
 #bond_coeff      2 0.3 0.5
 
 #angle_style cosine
@@ -63,14 +63,14 @@ dump            atomDump all custom 10000 dump.atom.lammpstrj id type x y z
 
 #velocity all create 0.02 4928459 mom yes rot yes dist gaussian
 
-thermo          1000
+thermo          1000 # Compute and print thermodynamic info at multipes fo 1000
 timestep	0.001
 
 thermo_style custom step temp press vol pe bonds
 
 # equil
 fix 1 all nve
-fix 2 all langevin 0.02 0.02 1 904297
+fix 2 all langevin 0.02 0.02 1 904297 # Apply a Langevin thermostat as described in (Schneider) to a group of atoms which models an interaction with a background implicit solvent
 #fix 3 all press/berendsen iso 0.0 0.0 1.0
 #dump            atomDump all custom 1000 dump.atom.lammpstrj id type x y z 
 

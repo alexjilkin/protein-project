@@ -3,66 +3,63 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.constants import Boltzmann as k_B
 from lammps_logfile import File
+from consts import d_hat_i, ref_hairpin_positions
 
 # Load trajectory
 pipeline = import_file("../data/dump.atom.lammpstrj", multiple_frames=True)
-log = File("../data/log.lammps")
+# log = File("../data/log.lammps")
 
-# Get the number of frames
 
 N = len(pipeline.compute(0).particles.positions)
-# Store results
-squared_differences_per_frame = []
 
-n_frames = pipeline.source.num_frames
+differences_per_frame = []
 
-T = np.array(log.get("Temp"))
+n_frames = 100000
+
+# T = np.array(log.get("Temp"))
 
 for frame_index in range(n_frames):
-    # Compute the data for the current frame
     data = pipeline.compute(frame_index)
 
-    # Extract positions for all particles
-    positions = data.particles.positions
+    particle_types = np.array(data.particles["Particle Type"])
+    particle_ids = np.array(data.particles["Particle Identifier"])
+    sorted_ids = np.argsort(particle_ids)
+    sorted_positions = np.array(data.particles.positions)[sorted_ids]
 
-    frame_squared_differences = []
+    differences = []
 
     for particle_index in range(N // 2):
-        pos = np.array(positions[particle_index])
-        corresponding_pos = np.array(positions[N - particle_index - 1])
+        # Particles are not sorted by id
+        corresponding_particle_index = N - particle_index - 1
 
-        # Calculate squared difference
-        squared_diff = (pos - corresponding_pos) ** 2
-        frame_squared_differences.append(squared_diff)
+        pos = sorted_positions[particle_index]
+        corresponding_pos = sorted_positions[corresponding_particle_index]
 
-    squared_differences_per_frame.append(frame_squared_differences)
+        differences.append(pos - corresponding_pos)
 
-squared_differences_per_frame = np.array(squared_differences_per_frame)
+    differences_per_frame.append(differences)
 
-# Summing x_i, y_i, z_i
-total_squared_distances = np.sum(squared_differences_per_frame, axis=2)
+differences_per_frame = np.array(differences_per_frame)
 
-# Taking the mean
-mean_squared_distances = np.mean(total_squared_distances, axis=1)
-rmsd_per_frame = np.sqrt(mean_squared_distances)
+d_i = np.linalg.norm(differences_per_frame, axis=2)
 
+rmsd = np.sqrt(np.sum((d_i - d_hat_i) ** 2, axis=1))
+
+plt.plot(np.arange(len(rmsd)), rmsd)
+plt.show()
 
 num_bins = int(n_frames / 4)
-vals, bins = np.histogram(rmsd_per_frame, density=True, bins=num_bins)
-bin_indices = np.digitize(rmsd_per_frame, bins) - 2
+density, bins = np.histogram(rmsd, density=True, bins=num_bins)
+bin_widths = bins[1:] - bins[:-1]
+unity_density = density / np.sum(density)
 
-print(bin_indices)
-print(len(vals))
-print(vals)
-# print(bin_indices)
-# for ind in bin_indices:
-#     print(ind)
-#     print(vals[ind])
+print(np.sum(unity_density))
+bin_indices = np.digitize(rmsd, bins) - 2
+
 
 T = T[::10]
-P_s = vals[bin_indices]
-print(len(T))
+P_s = unity_density[bin_indices]
 F_s = k_B * T * np.log(P_s)
-plt.scatter(rmsd_per_frame, F_s)
 
+plt.scatter(rmsd_per_frame, F_s, s=0.1)
 plt.show()
