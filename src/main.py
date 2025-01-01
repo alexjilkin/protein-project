@@ -1,28 +1,27 @@
 from ovito.io import import_file
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.constants import Boltzmann as k_B
 from lammps_logfile import File
 from consts import d_hat_i, ref_hairpin_positions
 
-# Load trajectory
 pipeline = import_file("../data/dump.atom.lammpstrj", multiple_frames=True)
-# log = File("../data/log.lammps")
 
+# Get Temp from log file
+log = File("../data/log.lammps")
 
+# T is at multiples of 1000, while dump is at multiples of 10000
+# T = np.array(log.get("Temp"))[::10]
 N = len(pipeline.compute(0).particles.positions)
 
 differences_per_frame = []
 
-n_frames = 100000
-
-# T = np.array(log.get("Temp"))
-
-for frame_index in range(n_frames):
+for frame_index in range(pipeline.source.num_frames):
     data = pipeline.compute(frame_index)
 
     particle_types = np.array(data.particles["Particle Type"])
     particle_ids = np.array(data.particles["Particle Identifier"])
+
+    # Order trajectory positions by id
     sorted_ids = np.argsort(particle_ids)
     sorted_positions = np.array(data.particles.positions)[sorted_ids]
 
@@ -42,24 +41,33 @@ for frame_index in range(n_frames):
 differences_per_frame = np.array(differences_per_frame)
 
 d_i = np.linalg.norm(differences_per_frame, axis=2)
-
 rmsd = np.sqrt(np.sum((d_i - d_hat_i) ** 2, axis=1))
 
-plt.plot(np.arange(len(rmsd)), rmsd)
-plt.show()
+num_bins = int(np.sqrt(len(rmsd)))
+hist, bins = np.histogram(rmsd, density=True, bins=num_bins)
 
-num_bins = int(n_frames / 4)
-density, bins = np.histogram(rmsd, density=True, bins=num_bins)
-bin_widths = bins[1:] - bins[:-1]
-unity_density = density / np.sum(density)
+# Normalise and handle 0
+P_s_bins = hist * np.diff(bins)
+P_s_bins[P_s_bins == 0] = 1e-10
 
-print(np.sum(unity_density))
-bin_indices = np.digitize(rmsd, bins) - 2
+# Find the bin indices, right=True to align with np.histogram behaviour
+bin_indices = np.digitize(rmsd, bins, right=True) - 1
+P_s = P_s_bins[bin_indices]
 
+# k_B is already inclued in Lennard-Jones
+k_B = 1.0
+# Constant temperature of Langevin thermo
+T = 0.02
 
-T = T[::10]
-P_s = unity_density[bin_indices]
 F_s = k_B * T * np.log(P_s)
 
-plt.scatter(rmsd_per_frame, F_s, s=0.1)
+# Sort for plotting
+sorted_indices = np.argsort(rmsd)
+rmsd = rmsd[sorted_indices]
+F_s = F_s[sorted_indices] * -1
+F_s -= np.min(F_s)
+
+plt.plot(rmsd, F_s)
+plt.xlabel("RMSD")
+plt.ylabel("F(s)")
 plt.show()
