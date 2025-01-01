@@ -1,20 +1,13 @@
 from ovito.io import import_file
 import numpy as np
 import matplotlib.pyplot as plt
-from lammps_logfile import File
-from consts import d_hat_i, ref_hairpin_positions
+from consts import d_hat_i
 
 pipeline = import_file("../data/dump.atom.lammpstrj", multiple_frames=True)
 
-# Get Temp from log file
-log = File("../data/log.lammps")
-
-# T is at multiples of 1000, while dump is at multiples of 10000
-# T = np.array(log.get("Temp"))[::10]
 N = len(pipeline.compute(0).particles.positions)
 
-differences_per_frame = []
-
+d_i = []
 for frame_index in range(pipeline.source.num_frames):
     data = pipeline.compute(frame_index)
 
@@ -36,11 +29,8 @@ for frame_index in range(pipeline.source.num_frames):
 
         differences.append(pos - corresponding_pos)
 
-    differences_per_frame.append(differences)
+    d_i.append(np.linalg.norm(differences, axis=1))
 
-differences_per_frame = np.array(differences_per_frame)
-
-d_i = np.linalg.norm(differences_per_frame, axis=2)
 rmsd = np.sqrt(np.sum((d_i - d_hat_i) ** 2, axis=1))
 
 num_bins = int(np.sqrt(len(rmsd)))
@@ -59,12 +49,12 @@ k_B = 1.0
 # Constant temperature of Langevin thermo
 T = 0.02
 
-F_s = k_B * T * np.log(P_s)
+F_s = -k_B * T * np.log(P_s)
 
 # Sort for plotting
 sorted_indices = np.argsort(rmsd)
 rmsd = rmsd[sorted_indices]
-F_s = F_s[sorted_indices] * -1
+F_s = F_s[sorted_indices]
 F_s -= np.min(F_s)
 
 plt.plot(rmsd, F_s)
