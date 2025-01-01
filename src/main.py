@@ -21,7 +21,6 @@ for frame_index in range(pipeline.source.num_frames):
     differences = []
 
     for particle_index in range(N // 2):
-        # Particles are not sorted by id
         corresponding_particle_index = N - particle_index - 1
 
         pos = sorted_positions[particle_index]
@@ -44,10 +43,8 @@ P_s_bins[P_s_bins == 0] = 1e-10
 bin_indices = np.digitize(rmsd, bins, right=True) - 1
 P_s = P_s_bins[bin_indices]
 
-# k_B is already inclued in Lennard-Jones
-k_B = 1.0
-# Constant temperature of Langevin thermo
-T = 0.02
+# k_B is already inclued in Lennard-Jones, T constant temperature of Langevin thermo
+k_B, T = 1.0, 0.02
 
 F_s = -k_B * T * np.log(P_s)
 
