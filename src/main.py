@@ -2,6 +2,10 @@ from ovito.io import import_file
 import numpy as np
 import matplotlib.pyplot as plt
 from consts import d_hat_i
+import zipfile
+
+with zipfile.ZipFile("../data/dump.atom.lammpstrj.zip", "r") as zip_ref:
+    zip_ref.extractall("../data/")
 
 pipeline = import_file("../data/dump.atom.lammpstrj", multiple_frames=True)
 
