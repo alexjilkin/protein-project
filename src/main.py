@@ -22,17 +22,12 @@ for frame_index in range(pipeline.source.num_frames):
     sorted_ids = np.argsort(particle_ids)
     sorted_positions = np.array(data.particles.positions)[sorted_ids]
 
-    differences = []
+    # Calculate distance between corresponding particles
+    d_i_per_frame = np.linalg.norm(
+        sorted_positions[: N // 2] - sorted_positions[-1 : -(N // 2) - 1 : -1], axis=1
+    )
 
-    for particle_index in range(N // 2):
-        corresponding_particle_index = N - particle_index - 1
-
-        pos = sorted_positions[particle_index]
-        corresponding_pos = sorted_positions[corresponding_particle_index]
-
-        differences.append(pos - corresponding_pos)
-
-    d_i.append(np.linalg.norm(differences, axis=1))
+    d_i.append(d_i_per_frame)
 
 rmsd = np.sqrt(np.sum((d_i - d_hat_i) ** 2, axis=1))
 
