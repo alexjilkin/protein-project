@@ -36,12 +36,14 @@ def F(s: np.ndarray, k_B: float, T: float):
     P_s_bins = hist * np.diff(bins)
     P_s_bins[P_s_bins == 0] = 1e-10
 
+    # Get bin indices for s
     bin_indices = np.digitize(s, bins, right=True) - 1
     P_s = P_s_bins[bin_indices]
 
     F_s = -k_B * T * np.log(P_s)
     F_s -= np.min(F_s)  # Normalize to start from zero
 
+    # Sorts by ascending rmsd
     sorted_indices = np.argsort(s)
     return s[sorted_indices], F_s[sorted_indices]
 
