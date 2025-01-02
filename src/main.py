@@ -2,78 +2,48 @@ import numpy as np
 import matplotlib.pyplot as plt
 from ovito.io import import_file
 from ovito.data import DataCollection
-from consts import d_hat_i
-import zipfile
+from utils import d_hat_i, extract_zip
 
 
-def extract_zip(zip_path: str, extract_to: str):
-    """
-    Extracts a zip file to the specified directory.
-    """
-    with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        zip_ref.extractall(extract_to)
-
-
-def load_pipeline(file_path: str):
-    """
-    Loads a trajectory pipeline from a file.
-    """
-    return import_file(file_path, multiple_frames=True)
-
-
-def compute_frame_distances(data: DataCollection, num_particles: int):
+def compute_frame_distances(data: DataCollection):
     """
     Computes pairwise distances between corresponding particles
-    in the first and last halves of the positions array.
+    in the first and last halves of the positions array. Sorts by
+    Particle ID.
     """
+    k = len(data.particles.positions)
     particle_ids = np.array(data.particles["Particle Identifier"])
     sorted_indices = np.argsort(particle_ids)
     sorted_positions = np.array(data.particles.positions)[sorted_indices]
 
     return np.linalg.norm(
-        sorted_positions[: num_particles // 2]
-        - sorted_positions[-1 : -(num_particles // 2) - 1 : -1],
+        sorted_positions[: k // 2] - sorted_positions[-1 : -(k // 2) - 1 : -1],
         axis=1,
     )
 
 
-def calculate_rmsd(d_i, d_hat_i):
-    """
-    Calculates the root-mean-square deviation (RMSD) given
-    distances and reference distances.
-    """
+def rmsd(d_i: np.ndarray, d_hat_i: np.ndarray):
     return np.sqrt(np.sum((d_i - d_hat_i) ** 2, axis=1))
 
 
-def calculate_free_energy(rmsd, k_B=1.0, T=0.02):
+def F(s: np.ndarray, k_B: float, T: float):
     """
-    Calculates free energy based on RMSD and the given constants.
+    Computes the free energy surface by collective variable s.
     """
-    num_bins = int(np.sqrt(len(rmsd)))
-    hist, bins = np.histogram(rmsd, density=True, bins=num_bins)
+    num_bins = int(np.sqrt(len(s)))
+    hist, bins = np.histogram(s, density=True, bins=num_bins)
 
     P_s_bins = hist * np.diff(bins)
     P_s_bins[P_s_bins == 0] = 1e-10
 
-    bin_indices = np.digitize(rmsd, bins, right=True) - 1
+    bin_indices = np.digitize(s, bins, right=True) - 1
     P_s = P_s_bins[bin_indices]
 
     F_s = -k_B * T * np.log(P_s)
     F_s -= np.min(F_s)  # Normalize to start from zero
 
-    sorted_indices = np.argsort(rmsd)
-    return rmsd[sorted_indices], F_s[sorted_indices]
-
-
-def plot_free_energy(rmsd, F_s):
-    """
-    Plots free energy versus RMSD.
-    """
-    plt.plot(rmsd, F_s)
-    plt.xlabel("RMSD")
-    plt.ylabel("F(s)")
-    plt.title("Free Energy vs RMSD")
-    plt.show()
+    sorted_indices = np.argsort(s)
+    return s[sorted_indices], F_s[sorted_indices]
 
 
 def main():
@@ -82,21 +52,25 @@ def main():
     trajectory_file = "../data/dump.atom.lammpstrj"
 
     extract_zip(zip_path, extract_to)
-    pipeline = load_pipeline(trajectory_file)
+    pipeline = import_file(trajectory_file, multiple_frames=True)
 
-    num_particles = len(pipeline.compute(0).particles.positions)
+    d_i = np.array(
+        [
+            compute_frame_distances(pipeline.compute(frame_index))
+            for frame_index in range(pipeline.source.num_frames)
+        ]
+    )
 
-    d_i = []
-    for frame_index in range(pipeline.source.num_frames):
-        data = pipeline.compute(frame_index)
-        d_i_per_frame = compute_frame_distances(data, num_particles)
-        d_i.append(d_i_per_frame)
+    # Generate descriptor. Can be saved to a file, using pickle for instance.
+    s = rmsd(d_i, d_hat_i)
 
-    d_i = np.array(d_i)
-    rmsd = calculate_rmsd(d_i, d_hat_i)
-    rmsd, F_s = calculate_free_energy(rmsd)
-
-    plot_free_energy(rmsd, F_s)
+    # k_B=1 in Lennard-Jones framework
+    # T=0.02 from Langevin constant thermo
+    plt.plot(*F(s, 1.0, 0.02))
+    plt.xlabel("RMSD")
+    plt.ylabel("F(s)")
+    plt.title("Toy Model Protein")
+    plt.show()
 
 
 if __name__ == "__main__":

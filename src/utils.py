@@ -1,3 +1,4 @@
+import zipfile
 import numpy as np
 
 # Frame 111067
@@ -18,8 +19,13 @@ ref_hairpin_positions = np.array(
         [-1.37016, -1.44781, -0.0769311],
     ]
 )
-n = len(ref_hairpin_positions) // 2
+k = len(ref_hairpin_positions) // 2
 
 d_hat_i = np.linalg.norm(
-    ref_hairpin_positions[:n] - ref_hairpin_positions[-1 : -n - 1 : -1], axis=1
+    ref_hairpin_positions[:k] - ref_hairpin_positions[-1 : -k - 1 : -1], axis=1
 )
+
+
+def extract_zip(zip_path: str, extract_to: str):
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+        zip_ref.extractall(extract_to)
