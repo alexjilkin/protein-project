@@ -9,3 +9,5 @@
     Go into the src/ folder and execute
     ```bash
     python main.py
+    ```
+    Descriptors are saved into `data/descriptors.csv`

@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from ovito.io import import_file
 from ovito.data import DataCollection
-from utils import d_hat_i, extract_zip
+from utils import d_hat_i, extract_zip, save_descriptors_to_file
 
 
 def compute_frame_distances(data: DataCollection):
@@ -55,7 +55,7 @@ def main():
 
     extract_zip(zip_path, extract_to)
     pipeline = import_file(trajectory_file, multiple_frames=True)
-
+    print(f"Calculating free energy surface using trajectory from {trajectory_file}")
     d_i = np.array(
         [
             compute_frame_distances(pipeline.compute(frame_index))
@@ -63,8 +63,9 @@ def main():
         ]
     )
 
-    # Generate descriptor. Can be saved to a file, using pickle for instance.
+    # Generate rmsd descriptor and save all into file
     s = rmsd(d_i, d_hat_i)
+    save_descriptors_to_file(d_i, d_hat_i, s, "../data/descriptors.csv")
 
     # k_B=1 in Lennard-Jones framework
     # T=0.02 from Langevin constant thermo

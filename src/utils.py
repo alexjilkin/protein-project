@@ -1,5 +1,6 @@
 import zipfile
 import numpy as np
+import pandas as pd
 
 # Frame 111067
 ref_hairpin_positions = np.array(
@@ -29,3 +30,23 @@ d_hat_i = np.linalg.norm(
 def extract_zip(zip_path: str, extract_to: str):
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
         zip_ref.extractall(extract_to)
+
+
+def save_descriptors_to_file(
+    d_i: np.ndarray, d_hat_i: np.ndarray, s: np.ndarray, filename: str
+):
+    """
+    Saves the descriptors (d_i, d_hat_i, RMSD) by rows of time step.
+    """
+    # Create column names dynamically for each d_i and d_hat_i descriptor
+    num_components = d_i.shape[1]
+    d_i_columns = [f"d_{i+1}" for i in range(num_components)]
+    d_hat_i_columns = [f"d_hat_{i+1}" for i in range(num_components)]
+
+    data = pd.DataFrame(
+        np.hstack([d_i, np.tile(d_hat_i, (d_i.shape[0], 1)), s[:, np.newaxis]]),
+        columns=d_i_columns + d_hat_i_columns + ["RMSD"],
+    )
+
+    data.to_csv(filename, index=False)
+    print(f"Descriptors saved to {filename}")
